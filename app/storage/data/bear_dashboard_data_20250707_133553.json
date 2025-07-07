@@ -1,0 +1,10 @@
+{
+  "timestamp": "2025-07-07T13:35:53.101973",
+  "data": {
+    "brand_visibility_percentage": "Brand VisibilityVisibility percentage represents how frequently your brand appears across all AI platform responses. This is calculated as your brand's visibility divided by the total number of prompts across all topics. Higher percentages indicate better overall market presence.Most recent visibility percentage10.3%Based on 39 total prompts",
+    "prompt_count": null,
+    "extraction_method": "playwright_selectors",
+    "scrape_url": "https://app.usebear.ai/dashboard",
+    "scrape_timestamp": "2025-07-07T13:35:53.101844"
+  }
+}

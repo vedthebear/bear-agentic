@@ -1,0 +1,10 @@
+{
+  "timestamp": "2025-07-06T22:49:50.282846",
+  "data": {
+    "brand_visibility_percentage": null,
+    "prompt_count": null,
+    "extraction_method": "stagehand_natural_language",
+    "scrape_url": "https://app.usebear.ai/dashboard",
+    "scrape_timestamp": "2025-07-06T22:49:50.282507"
+  }
+}
