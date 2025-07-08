@@ -9,5 +9,5 @@ export const stagehandConfig = () => ({
     apiKey: config.MODEL_API_KEY,
   },
   verbose: 1 as const,
-  enableCaching: true,
+  enableCaching: false,
 }); 

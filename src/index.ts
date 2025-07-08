@@ -20,6 +20,7 @@ async function main() {
       console.log("=".repeat(50));
       console.log(`Brand Visibility: ${result.data.brand_visibility_percentage || 'N/A'}`);
       console.log(`Prompt Count: ${result.data.prompt_count || 'N/A'}`);
+      console.log(`Sentiment Score: ${result.data.sentiment_score || 'N/A'}`);
       console.log(`Extraction Method: ${result.data.extraction_method}`);
       console.log(`Data File: ${filepath}`);
       console.log("=".repeat(50));

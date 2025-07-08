@@ -2,9 +2,26 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 export const config = {
-  MODEL_API_KEY: process.env.MODEL_API_KEY!,
-  BROWSERBASE_API_KEY: process.env.BROWSERBASE_API_KEY!,
-  BROWSERBASE_PROJECT_ID: process.env.BROWSERBASE_PROJECT_ID!,
-  BEAR_DASHBOARD_EMAIL: process.env.BEAR_DASHBOARD_EMAIL!,
-  BEAR_DASHBOARD_PASSWORD: process.env.BEAR_DASHBOARD_PASSWORD!,
+  // Bear AI App Runner API
+  BEAR_API_BASE_URL: process.env.BEAR_API_BASE_URL!,
+  BEAR_API_KEY: process.env.BEAR_API_KEY!,
+  
+  // Slack Configuration
+  SLACK_BOT_TOKEN: process.env.SLACK_BOT_TOKEN!,
+  SLACK_SIGNING_SECRET: process.env.SLACK_SIGNING_SECRET!,
+  
+  // OpenAI/LangChain
+  OPENAI_API_KEY: process.env.OPENAI_API_KEY!,
+  
+  // Pinecone Vector Database
+  PINECONE_API_KEY: process.env.PINECONE_API_KEY!,
+  PINECONE_INDEX_NAME: process.env.PINECONE_INDEX_NAME!,
+  PINECONE_ENVIRONMENT: process.env.PINECONE_ENVIRONMENT!,
+  
+  // Server Configuration
+  PORT: process.env.PORT || '3000',
+  NODE_ENV: process.env.NODE_ENV || 'development',
+  
+  // Optional: For development
+  SLACK_APP_TOKEN: process.env.SLACK_APP_TOKEN,
 }; 

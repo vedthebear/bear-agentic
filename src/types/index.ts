@@ -1,6 +1,7 @@
 export interface BearDashboardData {
   brand_visibility_percentage: string | null;
   prompt_count: string | null;
+  sentiment_score: string | null;
   extraction_method: string;
   timestamp: string;
   url: string;

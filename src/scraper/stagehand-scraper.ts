@@ -69,9 +69,21 @@ export class BearDashboardScraper {
       schema: promptSchema,
     });
 
+    await this.delay(3000);
+
+    // Extract sentiment score
+    const sentimentSchema = z.object({
+      sentimentScore: z.string().optional(),
+    });
+    const sentimentData = await page.extract({
+      instruction: "extract the sentiment score displayed on the dashboard",
+      schema: sentimentSchema,
+    });
+
     return {
       brand_visibility_percentage: visibilityData.brandVisibilityPercentage || null,
       prompt_count: promptData.promptCount || null,
+      sentiment_score: sentimentData.sentimentScore || null,
       extraction_method: "stagehand_typescript",
       timestamp: new Date().toISOString(),
       url: page.url(),
@@ -119,6 +131,7 @@ export class BearDashboardScraper {
     return {
       brand_visibility_percentage: null,
       prompt_count: null,
+      sentiment_score: null,
       extraction_method: "stagehand_typescript",
       timestamp: new Date().toISOString(),
       url: ""
