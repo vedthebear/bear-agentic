@@ -24,4 +24,8 @@ export const config = {
   
   // Optional: For development
   SLACK_APP_TOKEN: process.env.SLACK_APP_TOKEN,
+  
+  // Supabase Configuration
+  SUPABASE_URL: process.env.SUPABASE_URL!,
+  SUPABASE_PUBLISHABLE_KEY: process.env.SUPABASE_PUBLISHABLE_KEY!,
 }; 

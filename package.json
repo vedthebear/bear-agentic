@@ -18,7 +18,15 @@
     "type": "git",
     "url": "git+https://github.com/vedthebear/bear-agentic.git"
   },
-  "keywords": ["slack", "bot", "rag", "bear-ai", "pinecone", "langchain"],
+  "keywords": [
+    "slack",
+    "bot",
+    "rag",
+    "bear-ai",
+    "pinecone",
+    "langchain",
+    "agentic"
+  ],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
@@ -43,6 +51,7 @@
   },
   "dependencies": {
     "@slack/bolt": "^4.4.0",
+    "@supabase/supabase-js": "^2.50.4",
     "axios": "^1.6.7",
     "dotenv": "^17.0.1",
     "express": "^4.18.2",
