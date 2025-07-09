@@ -56,15 +56,22 @@ app.get('/health', (req, res) => {
 // Slack event endpoint
 app.post('/slack/events', async (req, res) => {
   try {
+    let body = req.body;
+    // If this is a modal submission, parse the payload
+    if (body.payload) {
+      body = JSON.parse(body.payload);
+    }
+
     Logger.info('Slack event received');
-    Logger.info(`Event type: ${req.body?.type}`);
-    Logger.info(`Event data: ${JSON.stringify(req.body)}`);
+    Logger.info(`Event type: ${body?.type}`);
+    Logger.info(`Event data: ${JSON.stringify(body)}`);
+    Logger.info(`Raw body: ${JSON.stringify(req.body)}`);
 
     // Handle slash command for /bear-link
-    if (req.body && req.body.command === '/bear-link') {
-      // Open a modal
+    if (body && body.command === '/bear-link') {
+      // Open a simple modal
       await slackClient.views.open({
-        trigger_id: req.body.trigger_id,
+        trigger_id: body.trigger_id,
         view: {
           type: 'modal',
           callback_id: 'bear_link_modal',
@@ -84,24 +91,18 @@ app.post('/slack/events', async (req, res) => {
                   text: 'Enter your Bear AI email address'
                 }
               }
-            },
-            {
-              type: 'input',
-              block_id: 'passBlock',
-              label: { type: 'plain_text', text: 'Bear AI Password' },
-              element: {
-                type: 'plain_text_input',
-                action_id: 'passInput',
-                placeholder: {
-                  type: 'plain_text',
-                  text: 'Enter your Bear AI password'
-                }
-              }
             }
           ]
         }
       });
       // Respond quickly to Slack to avoid timeout
+      return res.status(200).send();
+    }
+
+    // Handle modal submission (view_submission)
+    if (body && body.type === 'view_submission') {
+      Logger.info('Modal submitted!');
+      Logger.info(`Submission payload: ${JSON.stringify(body)}`);
       return res.status(200).send();
     }
 
