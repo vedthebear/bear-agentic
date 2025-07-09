@@ -1,10 +1,30 @@
-# Bear Agentic - Slack Bot
+# Bear Agentic - Slack Authentication Test
 
-A Slack bot that integrates with Bear AI to provide RAG-powered Q&A and daily summaries.
+**Current Focus: Slack Authentication Only**
 
-## Current Focus: Slack Authentication
+This is a focused test environment for Slack authentication. All other features (Bear AI API, RAG, LLM, etc.) are temporarily disabled to focus on getting Slack user linking working properly.
 
-We're currently focused on getting Slack authentication working properly. The bot allows users to link their Bear AI accounts using their email and password.
+## What's Active
+
+✅ **Slack Authentication System**
+- `/bear-link` command for linking Bear accounts
+- `/bear-links` command to view linked accounts
+- Comprehensive Slack user data capture
+- In-memory user linking storage
+- Detailed logging for debugging
+
+✅ **Test Endpoints**
+- `GET /health` - Health check
+- `GET /api/links` - View all linked accounts
+- `POST /slack/events` - Slack event processing
+
+## What's Disabled
+
+❌ Bear AI API integration
+❌ RAG (Retrieval-Augmented Generation)
+❌ LLM summarization
+❌ Daily summaries
+❌ Q&A functionality
 
 ## Setup
 
@@ -25,12 +45,14 @@ We're currently focused on getting Slack authentication working properly. The bo
 
 3. **Start the test server:**
    ```bash
+   npm run dev
+   # or
    npm run test-slack
    ```
 
 ## Testing Slack Authentication
 
-1. **Start the server** with `npm run test-slack`
+1. **Start the server** with `npm run dev`
 
 2. **Use ngrok** to expose your local server:
    ```bash
@@ -62,16 +84,37 @@ The bot captures the following Slack user information:
 - Account restrictions
 - Last updated timestamp
 
+## File Structure
+
+```
+src/
+├── testServer.ts          # Main test server (ACTIVE)
+├── slack/
+│   └── linkFlow.ts        # Slack authentication (ACTIVE)
+├── config/
+│   └── env.ts            # Environment config (ACTIVE)
+└── utils/
+    └── logger.ts         # Logging (ACTIVE)
+
+# Disabled files (renamed with .disabled suffix):
+├── server.ts.disabled
+├── slack/dailySummary.ts.disabled
+├── slack/qaHandler.ts.disabled
+├── slack/boltApp.ts.disabled
+└── api/*.ts.disabled
+```
+
 ## Next Steps
 
-Once Slack authentication is working, we'll:
-1. Integrate with Bear AI API for real authentication
-2. Implement RAG with Pinecone vector store
-3. Add daily summary generation
-4. Build the full Q&A system
+Once Slack authentication is working perfectly, we'll:
+1. Re-enable Bear AI API integration
+2. Add real Bear AI authentication
+3. Implement RAG with Pinecone
+4. Add LLM summarization
+5. Build the full Q&A system
 
 ## Development
 
-- `npm run test-slack` - Start the Slack test server
-- `npm run dev` - Start the full server (when ready)
-- `npm run build` - Build for production
+- `npm run dev` - Start the Slack test server
+- `npm run test-slack` - Same as dev (alias)
+- `npm run watch` - Start with auto-reload
