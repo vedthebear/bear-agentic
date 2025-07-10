@@ -22,4 +22,4 @@ import { config } from '../../config/env';
  * This client connects to the Bear AI Supabase instance and provides
  * access to authentication and database operations.
  */
-export const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_PUBLISHABLE_KEY); 
+export const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_ROLE_KEY); 

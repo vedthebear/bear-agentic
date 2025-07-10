@@ -1,15 +1,14 @@
 /**
  * Slack Bear AI Linking System
  * 
- * This module handles the linking of Slack workspaces to Bear AI accounts.
- * It provides a team-level linking system where one Bear AI account is linked
- * to one Slack workspace, allowing all users in that workspace to access
- * their Bear AI data through RAG queries.
+ * This module handles the linking of Slack users to Bear AI accounts.
+ * It provides a user-level linking system where each Slack user can link
+ * their own Bear AI account, allowing personalized access to their data.
  * 
  * Key Features:
- * - Team-level linking (one Bear AI account per Slack workspace)
+ * - User-level linking (one Bear AI account per Slack user)
  * - Bear AI credential authentication via Supabase
- * - In-memory storage of team links
+ * - Persistent storage in Supabase database
  * - Slack modal interface for credential collection
  * - Duplicate linking prevention
  */
@@ -17,101 +16,59 @@
 import { App, SlackCommandMiddlewareArgs, SlackViewMiddlewareArgs } from "@slack/bolt";
 import { Logger } from "../utils/logger";
 import { authenticateAndGetBearId } from "../integrations/supabase/auth";
+import { BearLinkStorage, BearLink } from "../storage/supabase";
 
-// ---------- 1. In-Memory Data Store ----------
-
-/**
- * Type definition for team link keys
- * Uses the Slack team ID as the unique identifier
- */
-type TeamLinkKey = string;  // Just the team_id
+// ---------- 1. Data Access Functions ----------
 
 /**
- * Interface defining the structure of a team link
- * 
- * This represents the mapping between a Slack workspace and a Bear AI account.
- * Only one Bear AI account can be linked per Slack workspace.
- */
-interface TeamLink {
-  /** The Bear AI user ID retrieved from authentication */
-  bearUserId: string;
-  /** The Slack workspace ID this account is linked to */
-  slackTeamId: string;
-  /** Information about who created this link */
-  linkedBy: {
-    id: string;           // Slack user ID who created the link
-    name?: string;        // Slack username
-    real_name?: string;   // Slack display name
-    email?: string;       // Slack user email
-  };
-  /** When this link was created (ISO timestamp) */
-  linkedAt: string;
-}
-
-/**
- * In-memory storage for team links
- * 
- * Maps Slack team IDs to their corresponding Bear AI account information.
- * In production, this would be replaced with a persistent database.
- */
-const teamLinkTable = new Map<TeamLinkKey, TeamLink>();
-
-// ---------- 2. Data Access Functions ----------
-
-/**
- * Retrieves the Bear AI user ID for a given Slack team
+ * Retrieves the Bear AI user ID for a given Slack user
  * 
  * This is the primary function used by the RAG system to determine
- * which Bear AI account's data to query for a given Slack workspace.
+ * which Bear AI account's data to query for a given Slack user.
  * 
- * @param team - The Slack team/workspace ID
+ * @param slackUserId - The Slack user ID
  * @returns The Bear AI user ID if linked, undefined otherwise
  * 
  * @example
- * const bearId = getBearId('T1234567890');
+ * const bearId = await getBearId('U1234567890');
  * if (bearId) {
  *   // Query Bear AI data for this account
  * }
  */
-export function getBearId(team: string): string | undefined {
-  return teamLinkTable.get(team)?.bearUserId;
+export async function getBearId(slackUserId: string): Promise<string | undefined> {
+  try {
+    const link = await BearLinkStorage.getLinkBySlackUser(slackUserId);
+    if (link) {
+      // Update last accessed timestamp
+      await BearLinkStorage.updateLastAccessed(slackUserId);
+      return link.bear_id;
+    }
+    return undefined;
+  } catch (error) {
+    Logger.error('Error getting Bear ID:', error);
+    return undefined;
+  }
 }
 
 /**
- * Retrieves the complete team link information for a given Slack team
+ * Checks if a Slack user is already linked to a Bear AI account
  * 
- * @param team - The Slack team/workspace ID
- * @returns Complete TeamLink object if linked, undefined otherwise
- */
-export function getTeamLink(team: string): TeamLink | undefined {
-  return teamLinkTable.get(team);
-}
-
-/**
- * Retrieves all team links in the system
- * 
- * Useful for debugging and administrative purposes.
- * 
- * @returns Array of all TeamLink objects
- */
-export function getAllLinks(): TeamLink[] {
-  return Array.from(teamLinkTable.values());
-}
-
-/**
- * Checks if a Slack team is already linked to a Bear AI account
- * 
- * Used to prevent duplicate linking and to determine if a team
+ * Used to prevent duplicate linking and to determine if a user
  * can make RAG queries.
  * 
- * @param team - The Slack team/workspace ID
- * @returns true if the team is linked, false otherwise
+ * @param slackUserId - The Slack user ID
+ * @returns true if the user is linked, false otherwise
  */
-export function isTeamLinked(team: string): boolean {
-  return teamLinkTable.has(team);
+export async function isUserLinked(slackUserId: string): Promise<boolean> {
+  try {
+    return await BearLinkStorage.linkExists(slackUserId);
+  } catch (error) {
+    Logger.error('Error checking if user is linked:', error);
+    return false;
+  }
 }
 
-// ---------- 3. Slack Bolt Integration ----------
+// ---------- 2. Slack Bolt Integration ----------
 
 /**
  * Registers all Slack commands and interactions for the Bear AI linking system
@@ -135,32 +92,41 @@ export function registerLinkFlow(app: App) {
    * 2. Modal opens with email/password fields
    * 3. User submits credentials
    * 4. System authenticates with Bear AI
-   * 5. Team is linked to Bear AI account
+   * 5. User is linked to Bear AI account
    */
   app.command("/bear-link", async ({ ack, command, client }) => {
     await ack();
 
-                Logger.info(`Link command triggered by user ${command.user_id} in team ${command.team_id}`);
-      Logger.info(`Command details: ${JSON.stringify({
-        user_id: command.user_id,
-        team_id: command.team_id,
-        channel_id: command.channel_id,
-        text: command.text,
-        trigger_id: command.trigger_id
-      })}`);
+    Logger.info(`Link command triggered by user ${command.user_id} in team ${command.team_id}`);
+    Logger.info(`Command details: ${JSON.stringify({
+      user_id: command.user_id,
+      team_id: command.team_id,
+      channel_id: command.channel_id,
+      text: command.text,
+      trigger_id: command.trigger_id
+    })}`);
 
-      try {
-        // Get detailed user info from Slack for the modal display
-        // This shows who is initiating the linking process
-        const userInfo = await client.users.info({
-          user: command.user_id
+    try {
+      // Check if user is already linked
+      const isLinked = await isUserLinked(command.user_id);
+      if (isLinked) {
+        await client.chat.postEphemeral({
+          channel: command.channel_id,
+          user: command.user_id,
+          text: "✅ You already have a Bear AI account linked. Use `/bear-links` to view your link details."
         });
+        return;
+      }
 
-        Logger.info(`Retrieved user info: ${JSON.stringify(userInfo.user)}`);
+      // Get detailed user info from Slack for the modal display
+      const userInfo = await client.users.info({
+        user: command.user_id
+      });
 
-        // Open the Bear AI linking modal
-        // This modal collects the user's Bear AI credentials
-        await client.views.open({
+      Logger.info(`Retrieved user info: ${JSON.stringify(userInfo.user)}`);
+
+      // Open the Bear AI linking modal
+      await client.views.open({
         trigger_id: command.trigger_id,
         view: {
           type: "modal",
@@ -208,6 +174,11 @@ export function registerLinkFlow(app: App) {
       });
     } catch (error) {
       Logger.error('Error opening link modal:', error);
+      await client.chat.postEphemeral({
+        channel: command.channel_id,
+        user: command.user_id,
+        text: "❌ Failed to open linking modal. Please try again."
+      });
     }
   });
 
@@ -215,13 +186,13 @@ export function registerLinkFlow(app: App) {
    * Modal submission handler for Bear AI linking
    * 
    * This handler processes the Bear AI credentials submitted through the modal.
-   * It authenticates the user with Bear AI and creates the team link.
+   * It authenticates the user with Bear AI and creates the user link.
    * 
    * Flow:
    * 1. User submits email/password in modal
-   * 2. System authenticates with Supabase
+   * 2. System authenticates with Bear AI
    * 3. Retrieves Bear user ID
-   * 4. Creates team link in memory
+   * 4. Creates user link in Supabase
    * 5. Sends confirmation message
    */
   app.view(
@@ -242,78 +213,62 @@ export function registerLinkFlow(app: App) {
       const email = view.state.values.emailBlock?.emailInput?.value;
       const password = view.state.values.passBlock?.passInput?.value;
 
-              Logger.info(`Form values: ${JSON.stringify({ email, password: password ? '[HIDDEN]' : 'MISSING' })}`);
+      Logger.info(`Form values: ${JSON.stringify({ email, password: password ? '[HIDDEN]' : 'MISSING' })}`);
 
       try {
-        // Step 1: Check if this team is already linked to prevent duplicates
-        // Only one Bear AI account can be linked per Slack workspace
-        if (isTeamLinked(teamId)) {
+        // Step 1: Check if this user is already linked to prevent duplicates
+        if (await isUserLinked(userId)) {
           await client.chat.postMessage({
             channel: userId,
-            text: `✅ This Slack workspace is already linked to a Bear AI account.`,
+            text: `✅ You already have a Bear AI account linked.`,
           });
           return;
         }
 
         // Step 2: Get detailed user info from Slack for logging and display
-        // This information is stored with the link for audit purposes
         const userInfo = await client.users.info({
           user: userId
         });
 
         Logger.info(`User info for linking: ${JSON.stringify(userInfo.user)}`);
 
+        // Step 2.5: Fetch Slack team (workspace) info for team name
+        const teamInfo = await client.team.info({ team: teamId });
+        const teamName = teamInfo.team?.name || teamId;
+        Logger.info(`Slack team name: ${teamName}`);
+
         // Step 3: Authenticate with Bear AI and retrieve the Bear user ID
-        // This validates the credentials and gets the Bear account identifier
         if (!email || !password) {
           throw new Error('Email and password are required');
         }
         const bearUserId = await authenticateAndGetBearId(email, password);
 
-        // Step 4: Create and store the team link in memory
-        // This link maps the Slack workspace to the Bear AI account
-        // All users in this workspace will now be able to query Bear AI data
-        const teamLink: TeamLink = {
-          bearUserId: bearUserId,
-          slackTeamId: teamId,
-          linkedBy: {
-            id: userInfo.user?.id || userId,
-            name: userInfo.user?.name,
-            real_name: userInfo.user?.real_name,
-            email: userInfo.user?.profile?.email,
-          },
-          linkedAt: new Date().toISOString()
-        };
+        // Step 4: Create and store the user link in Supabase
+        const bearLink = await BearLinkStorage.createLink(userId, teamId, teamName, bearUserId);
 
-        // Store the link in our in-memory table
-        // In production, this would be stored in a persistent database
-        teamLinkTable.set(teamId, teamLink);
-
-        Logger.info(`Team link created: ${JSON.stringify(teamLink)}`);
+        Logger.info(`User link created: ${JSON.stringify(bearLink)}`);
 
         // Step 5: Send confirmation message to the user
-        // This confirms the linking was successful and provides details
         await client.chat.postMessage({
           channel: userId,
-          text: `✅ Your Bear AI account is now linked to this Slack workspace!
+          text: `✅ Your Bear AI account is now linked!
 
 *Linked By:* ${userInfo.user?.real_name || userInfo.user?.name || 'Unknown'}
 *Bear User ID:* ${bearUserId}
 *Linked At:* ${new Date().toLocaleString()}
 
-All users in this workspace can now ask questions about your Bear data!`,
+You can now ask questions about your Bear data!`,
         });
 
-        Logger.success(`Successfully linked team ${teamId} to Bear ID ${bearUserId}`);
+        Logger.success(`Successfully linked user ${userId} to Bear ID ${bearUserId}`);
 
       } catch (error) {
         Logger.error('Error in modal submission:', error);
         
         // Send error message to user with helpful guidance
-        // This helps users understand what went wrong and what to do next
         await client.chat.postMessage({
           channel: userId,
-          text: `❌ Failed to link your Bear account. Please try again or contact support.`,
+          text: `❌ Failed to link your Bear account: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again or contact support.`,
         });
       }
     },
@@ -322,41 +277,64 @@ All users in this workspace can now ask questions about your Bear data!`,
   /**
    * /bear-links command handler
    * 
-   * This command shows the current linking status for the workspace.
+   * This command shows the current linking status for the user and team.
    * It's useful for debugging and for users to verify their linking status.
    * 
    * Shows:
-   * - Whether the workspace is linked
+   * - Whether the user is linked
    * - Who created the link
    * - When it was created
    * - The Bear user ID
+   * - All links in the team (for admins)
    */
   app.command("/bear-links", async ({ ack, command, client }) => {
     await ack();
 
-    // Check if this workspace is linked to a Bear AI account
-    const teamLink = getTeamLink(command.team_id);
+    try {
+      // Check if this user is linked to a Bear AI account
+      const userLink = await BearLinkStorage.getLinkBySlackUser(command.user_id);
 
-    if (!teamLink) {
-      // No link found - prompt user to create one
+      if (!userLink) {
+        // No link found - prompt user to create one
+        await client.chat.postEphemeral({
+          channel: command.channel_id,
+          user: command.user_id,
+          text: "No Bear account is currently linked to your Slack account. Use `/bear-link` to link your Bear AI account."
+        });
+        return;
+      }
+
+      // Display the user's linking information
+      const userLinkText = `*Your Linked Bear Account:*\n• *Bear User ID:* ${userLink.bear_id}\n• *Linked At:* ${new Date(userLink.created_at).toLocaleString()}\n• *Last Accessed:* ${new Date(userLink.last_accessed).toLocaleString()}`;
+
+      // Get all links in the team for admin view
+      let teamLinksText = '';
+      try {
+        const teamLinks = await BearLinkStorage.getLinksByTeam(command.team_id);
+        if (teamLinks.length > 1) {
+          teamLinksText = `\n\n*All Bear Links in This Team:*`;
+          teamLinks.forEach(link => {
+            teamLinksText += `\n• <@${link.slack_user_id}> - ${link.bear_id} (${new Date(link.created_at).toLocaleDateString()})`;
+          });
+        }
+      } catch (err) {
+        Logger.error('Error getting team links:', err);
+        teamLinksText = '\n\n*Could not retrieve team links*';
+      }
+
+      // Send the information as an ephemeral message
       await client.chat.postEphemeral({
         channel: command.channel_id,
         user: command.user_id,
-        text: "No Bear account is currently linked in this workspace. Use `/bear-link` to link your Bear AI account."
+        text: `${userLinkText}${teamLinksText}`
       });
-      return;
+    } catch (error) {
+      Logger.error('Error in bear-links command:', error);
+      await client.chat.postEphemeral({
+        channel: command.channel_id,
+        user: command.user_id,
+        text: "❌ Failed to retrieve link information. Please try again."
+      });
     }
-
-    // Display the linking information in a formatted message
-    const linkText = `• *Linked By:* ${teamLink.linkedBy.real_name || teamLink.linkedBy.name || 'Unknown'} (${teamLink.linkedBy.id})
-• *Bear User ID:* ${teamLink.bearUserId}
-• *Linked At:* ${new Date(teamLink.linkedAt).toLocaleString()}`;
-
-    // Send the information as an ephemeral message (only visible to the user)
-    await client.chat.postEphemeral({
-      channel: command.channel_id,
-      user: command.user_id,
-      text: `*Linked Bear Account:*\n${linkText}`
-    });
   });
 }

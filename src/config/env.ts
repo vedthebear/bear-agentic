@@ -27,5 +27,5 @@ export const config = {
   
   // Supabase Configuration
   SUPABASE_URL: process.env.SUPABASE_URL!,
-  SUPABASE_PUBLISHABLE_KEY: process.env.SUPABASE_PUBLISHABLE_KEY!,
+  SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY!,
 }; 
