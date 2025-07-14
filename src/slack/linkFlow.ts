@@ -15,7 +15,7 @@
 
 import { App, SlackCommandMiddlewareArgs, SlackViewMiddlewareArgs } from "@slack/bolt";
 import { Logger } from "../utils/logger";
-import { authenticateAndGetBearId } from "../integrations/supabase/auth";
+import { authenticateAndGetBearIdAndCompanyId } from "../integrations/supabase/auth";
 import { BearLinkStorage, BearLink } from "../storage/supabase";
 
 // ---------- 1. Data Access Functions ----------
@@ -237,14 +237,14 @@ export function registerLinkFlow(app: App) {
         const teamName = teamInfo.team?.name || teamId;
         Logger.info(`Slack team name: ${teamName}`);
 
-        // Step 3: Authenticate with Bear AI and retrieve the Bear user ID
+        // Step 3: Authenticate with Bear AI and retrieve the Bear user ID and company ID
         if (!email || !password) {
           throw new Error('Email and password are required');
         }
-        const bearUserId = await authenticateAndGetBearId(email, password);
+        const { bearUserId, companyId } = await authenticateAndGetBearIdAndCompanyId(email, password);
 
         // Step 4: Create and store the user link in Supabase
-        const bearLink = await BearLinkStorage.createLink(userId, teamId, teamName, bearUserId);
+        const bearLink = await BearLinkStorage.createLink(userId, teamId, teamName, bearUserId, companyId);
 
         Logger.info(`User link created: ${JSON.stringify(bearLink)}`);
 

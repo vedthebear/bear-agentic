@@ -24,6 +24,7 @@ export interface BearLink {
   created_at: string; // ISO timestamp
   last_accessed: string; // ISO timestamp
   is_active: boolean; // Whether the link is active
+  company_id?: string; // Bear AI company ID (optional)
 }
 
 // Database operations
@@ -61,7 +62,8 @@ export class BearLinkStorage {
     slackUserId: string,
     slackTeamId: string,
     slackTeamName: string,
-    bearId: string
+    bearId: string,
+    companyId?: string
   ): Promise<BearLink> {
     const now = new Date().toISOString();
     
@@ -74,7 +76,8 @@ export class BearLinkStorage {
         bear_id: bearId,
         created_at: now,
         last_accessed: now,
-        is_active: true
+        is_active: true,
+        company_id: companyId
       })
       .select()
       .single();
