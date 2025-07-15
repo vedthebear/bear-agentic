@@ -1,5 +1,3 @@
-// This is a test
-
 import dotenv from 'dotenv';
 dotenv.config();
 

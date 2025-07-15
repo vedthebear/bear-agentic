@@ -29,7 +29,7 @@ export interface BearLink {
 
 // Database operations
 export class BearLinkStorage {
-  private static readonly TABLE_NAME = 'bear_links';
+  private static readonly TABLE_NAME = 'slack_links';
 
   /**
    * Initialize the database table if it doesn't exist
